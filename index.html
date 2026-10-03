@@ -2,42 +2,190 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Deriv Lane Analysis</title>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Deriv Lane Analysis - Scanner Pro</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;font-family:Inter,system-ui,sans-serif}
+body{background:#070b14;color:#e2e8f0;padding:12px}
+.header{display:flex;flex-wrap:wrap;gap:10px;justify-content:space-between;align-items:center;margin-bottom:12px}
+.logo{font-weight:900;font-size:18px}.logo span{color:#22d3ee}
+.card{background:#111a2e;border:1px solid #1e2d50;border-radius:14px;padding:12px;margin-bottom:10px}
+.grid{display:grid;grid-template-columns:1fr;gap:10px}
+@media(min-width:1000px){.grid{grid-template-columns:1.2fr 0.8fr}}
+.select,.btn{background:#0f1a33;border:1px solid #234078;color:#e2e8f0;border-radius:8px;padding:8px 12px;font-size:13px;cursor:pointer}
+.big-digit{font-size:58px;font-weight:900;text-align:center}
+.price{font-size:12px;color:#94a3b8;text-align:center}
+.dots{display:flex;flex-wrap:wrap;gap:5px;margin-top:8px}
+.dot{width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700}
+.dot.over{background:#0e3a2e;color:#34d399;border:1px solid #14532d}
+.dot.under{background:#2a1a0e;color:#fbbf24;border:1px solid #78350f}
+.stat{font-size:22px;font-weight:800}
+.label{font-size:10px;color:#94a3b8;text-transform:uppercase;letter-spacing:1px}
+.badge{padding:3px 7px;border-radius:6px;font-size:10px;font-weight:700}
+.badge.buy{background:#16a34a;color:white}.badge.sell{background:#dc2626;color:white}.badge.wait{background:#334155;color:#cbd5e1}
+.bar-row{display:flex;align-items:center;gap:6px;margin:3px 0;font-size:11px}
+.bar{height:6px;background:#1e293b;border-radius:4px;flex:1;overflow:hidden}.fill{height:100%;background:#22d3ee}
+.digit-btn{width:34px;height:34px;border-radius:8px;border:1px solid #234078;background:#0f1a33;color:white;cursor:pointer}
+.digit-btn.active{background:#22d3ee;color:#020617;font-weight:800}
+table{width:100%;border-collapse:collapse;font-size:12px}
+th{color:#64748b;text-align:left;padding:6px 4px;font-size:10px;text-transform:uppercase}
+td{padding:7px 4px;border-top:1px solid #1e293b}
+.strength{height:6px;background:#1e293b;border-radius:3px;overflow:hidden;width:70px}
+.strength-fill{height:100%}
+.s-weak{background:#eab308}.s-medium{background:#f97316}.s-strong{background:#22c55e}.s-super{background:#22d3ee}
+</style>
+</head>
+<body>
+<div class="header">
+<div class="logo"><span>DERIV</span> LANE SCANNER PRO</div>
+<div style="display:flex;gap:6px;flex-wrap:wrap">
+<select id="market" class="select"></select>
+<button class="btn" onclick="resetData()">Reset</button>
+<button class="btn" id="scanBtn" onclick="toggleScanner()">Start Scanner</button>
+<span id="status" class="badge wait">CONNECTING</span>
+</div>
+</div>
 
-  <style>
-    body {
-      margin: 0;
-      font-family: Arial, sans-serif;
-      background: #0b1220;
-      color: white;
-    }
+<div class="grid">
+<div>
+<div class="card">
+<div style="display:flex;justify-content:space-between"><span class="label">Live Last Digit</span><span id="price" class="price"></span></div>
+<div id="bigDigit" class="big-digit">-</div>
+<div class="label">Last 100 Digits</div>
+<div id="dots" class="dots"></div>
+</div>
 
-    header {
-      background: #111c2e;
-      padding: 20px;
-      text-align: center;
-      border-bottom: 1px solid #26344a;
-    }
+<div class="grid" style="grid-template-columns:1fr 1fr;gap:10px">
+<div class="card">
+<div class="label">Over / Under</div>
+<div style="display:flex;gap:8px;margin-top:8px;text-align:center">
+<div style="flex:1"><div class="label">Under 5</div><div id="underPct" class="stat">0%</div></div>
+<div style="flex:1"><div class="label">Over 4</div><div id="overPct" class="stat">0%</div></div>
+</div>
+<div style="margin-top:8px;display:flex;justify-content:space-between"><span class="label">Signal</span><span id="ouSignal" class="badge wait">WAIT</span></div>
+<div class="label" style="margin-top:8px">Even / Odd</div>
+<div style="display:flex;gap:8px;text-align:center"><div style="flex:1"><div class="label">Even</div><div id="evenPct" class="stat">0%</div></div><div style="flex:1"><div class="label">Odd</div><div id="oddPct" class="stat">0%</div></div></div>
+<div style="margin-top:6px;display:flex;justify-content:space-between"><span class="label">E/O</span><span id="eoSignal" class="badge wait">WAIT</span></div>
+</div>
+<div class="card">
+<div class="label">Matches / Differs</div>
+<div id="digitSelector" style="display:flex;flex-wrap:wrap;gap:5px;margin-top:6px"></div>
+<div style="display:flex;gap:8px;margin-top:8px;text-align:center">
+<div style="flex:1"><div class="label">Matches <span id="selDigit">0</span></div><div id="matchPct" class="stat">0%</div></div>
+<div style="flex:1"><div class="label">Differs</div><div id="differPct" class="stat">100%</div></div>
+</div>
+<div style="margin-top:8px;display:flex;justify-content:space-between"><span class="label">Signal</span><span id="mdSignal" class="badge wait">WAIT</span></div>
+<div class="label" style="margin-top:6px">Last seen: <span id="lastSeen">-</span> ticks</div>
+</div>
+</div>
+</div>
 
-    h1 {
-      margin: 0;
-      color: #00c6ff;
-    }
+<div>
+<div class="card">
+<div style="display:flex;justify-content:space-between;align-items:center"><span class="label">🚀 Live Market Scanner</span><span class="label" id="scanStatus">Idle - Click Start</span></div>
+<div style="max-height:520px;overflow:auto;margin-top:8px">
+<table><thead><tr><th>Market</th><th>Last</th><th>Signal</th><th>Strength</th></tr></thead><tbody id="scanBody"></tbody></table>
+</div>
+<div class="label" style="margin-top:8px">Strength: 0-55% Weak, 56-65% Medium, 66-80% Strong, 81-100% Super</div>
+</div>
+<div class="card">
+<div class="label">Digit Frequency 0-9</div>
+<div id="freq"></div>
+</div>
+</div>
+</div>
 
-    .container {
-      max-width: 1000px;
-      margin: 30px auto;
-      padding: 20px;
-    }
+<script>
+const MARKETS=[
+["R_10","V10 (1s)"],["R_25","V25 (1s)"],["R_50","V50 (1s)"],["R_75","V75 (1s)"],["R_100","V100 (1s)"],
+["R_10X","V10"],["R_25X","V25"],["R_50X","V50"],["R_75X","V75"],["R_100X","V100"],
+["BOOM300","Boom 300"],["BOOM500","Boom 500"],["BOOM1000","Boom 1000"],
+["CRASH300","Crash 300"],["CRASH500","Crash 500"],["CRASH1000","Crash 1000"],
+["JD10","Jump 10"],["JD25","Jump 25"],["JD50","Jump 50"],["JD75","Jump 75"],["JD100","Jump 100"]
+];
+let digits=[];let selectedDigit=0;let ws;let currentSymbol="R_10";
+let scannerData={};let scanning=false;let scannerWS=null;
 
-    .card {
-      background: #121e31;
-      padding: 25px;
-      border-radius: 15px;
-      margin-bottom: 20px;
-      box-shadow: 0 5px 20px rgba(0,0,0,0.3);
-    }
-
-    label {…
+function init(){
+ const sel=document.getElementById('market');
+ MARKETS.forEach(m=>{let o=document.createElement('option');o.value=m[0];o.textContent=m[1];if(m[0]==="R_10")o.selected=true;sel.appendChild(o);});
+ const c=document.getElementById('digitSelector');
+ for(let i=0;i<=9;i++){let b=document.createElement('button');b.className='digit-btn'+(i===0?' active':'');b.textContent=i;b.onclick=()=>{selectedDigit=i;document.querySelectorAll('.digit-btn').forEach(x=>x.classList.remove('active'));b.classList.add('active');document.getElementById('selDigit').textContent=i;updateStats();};c.appendChild(b);}
+ MARKETS.forEach(m=>scannerData[m[0]]={name:m[1],digits:[],last:0,signal:'WAIT',strength:0,type:'-'});
+ renderScanner();
+}
+function connect(){
+ const status=document.getElementById('status');status.textContent='LIVE';status.className='badge buy';
+ if(ws) ws.close();
+ ws=new WebSocket('wss://ws.binaryws.com/websockets/v3?app_id=1089');
+ ws.onopen=()=>ws.send(JSON.stringify({ticks:currentSymbol}));
+ ws.onmessage=(msg)=>{let data=JSON.parse(msg.data);if(data.tick){handleTick(currentSymbol,data.tick.quote,true);}};
+ ws.onclose=()=>setTimeout(connect,2000);
+}
+function handleTick(symbol,quote,isMain){
+ const lastDigit=parseInt(quote.toString().slice(-1));if(isNaN(lastDigit))return;
+ if(isMain){digits.unshift(lastDigit);if(digits.length>100)digits.pop();document.getElementById('bigDigit').textContent=lastDigit;document.getElementById('price').textContent=quote;renderDots();updateStats();}
+ if(!scannerData[symbol]) return;
+ scannerData[symbol].digits.unshift(lastDigit);if(scannerData[symbol].digits.length>50)scannerData[symbol].digits.pop();
+ scannerData[symbol].last=lastDigit;
+ let d=scannerData[symbol].digits;
+ if(d.length>=20){
+   let under=d.filter(x=>x<=4).length;let over=d.length-under;
+   let even=d.filter(x=>x%2===0).length;
+   let pct=Math.max(under,over,even,d.length-even)/d.length*100;
+   let type=under>over?'UNDER 5':'OVER 4';
+   if(even>Math.max(under,over)) type=even>d.length/2?'EVEN':'ODD';
+   if(pct<55){scannerData[symbol].signal='WAIT';scannerData[symbol].strength=Math.round(pct);scannerData[symbol].type='WAIT';}
+   else{scannerData[symbol].signal=type;scannerData[symbol].strength=Math.round(pct);scannerData[symbol].type=type;}
+ }
+ if(scanning) renderScanner();
+}
+function renderDots(){let c=document.getElementById('dots');c.innerHTML='';digits.slice(0,100).forEach(d=>{let div=document.createElement('div');div.className='dot '+(d>=5?'over':'under');div.textContent=d;c.appendChild(div);});}
+function updateStats(){
+ if(!digits.length)return;let total=digits.length;
+ let under=digits.filter(d=>d<=4).length;let over=total-under;let even=digits.filter(d=>d%2===0).length;let odd=total-even;
+ let match=digits.filter(d=>d===selectedDigit).length;
+ document.getElementById('underPct').textContent=Math.round(under/total*100)+'%';
+ document.getElementById('overPct').textContent=Math.round(over/total*100)+'%';
+ document.getElementById('evenPct').textContent=Math.round(even/total*100)+'%';
+ document.getElementById('oddPct').textContent=Math.round(odd/total*100)+'%';
+ document.getElementById('matchPct').textContent=Math.round(match/total*100)+'%';
+ document.getElementById('differPct').textContent=Math.round((total-match)/total*100)+'%';
+ let lastSeen=digits.indexOf(selectedDigit);document.getElementById('lastSeen').textContent=lastSeen===-1?'100+':lastSeen;
+ let last=digits[0];
+ let ou=document.getElementById('ouSignal');if([0,1,2,3].includes(last)){ou.textContent='BUY UNDER 5';ou.className='badge buy';}else if([6,7,8,9].includes(last)){ou.textContent='BUY OVER 4';ou.className='badge buy';}else{ou.textContent='WAIT';ou.className='badge wait';}
+ let eo=document.getElementById('eoSignal');eo.textContent=(last%2===0?'EVEN':'ODD')+' - '+(even>odd?even+'% Even':odd+'% Odd');eo.className='badge wait';
+ let md=document.getElementById('mdSignal');if(lastSeen>15){md.textContent='DUE MATCH '+selectedDigit;md.className='badge buy';}else if(lastSeen!==-1&&lastSeen<=3){md.textContent='DIFFERS '+selectedDigit;md.className='badge sell';}else{md.textContent='WAIT';md.className='badge wait';}
+ let freqC=document.getElementById('freq');freqC.innerHTML='';let counts=[];for(let i=0;i<=9;i++)counts.push({d:i,c:digits.filter(x=>x===i).length});counts.sort((a,b)=>b.c-a.c);counts.forEach(({d,c})=>{let pct=total?Math.round(c/total*100):0;let row=document.createElement('div');row.className='bar-row';row.innerHTML=`<span style="width:14px">${d}</span><div class="bar"><div class="fill" style="width:${pct}%"></div></div><span style="width:34px;text-align:right">${pct}%</span>`;freqC.appendChild(row);});
+}
+function toggleScanner(){
+ scanning=!scanning;
+ document.getElementById('scanBtn').textContent=scanning?'Stop Scanner':'Start Scanner';
+ document.getElementById('scanStatus').textContent=scanning?'Scanning 20 markets live...':'Idle';
+ if(scanning) startScannerWS(); else {if(scannerWS)scannerWS.close();}
+}
+function startScannerWS(){
+ if(scannerWS) scannerWS.close();
+ scannerWS=new WebSocket('wss://ws.binaryws.com/websockets/v3?app_id=1089');
+ scannerWS.onopen=()=>{MARKETS.forEach(m=>scannerWS.send(JSON.stringify({ticks:m[0]})));};
+ scannerWS.onmessage=(msg)=>{let data=JSON.parse(msg.data);if(data.tick){handleTick(data.tick.symbol,data.tick.quote,false);}};
+}
+function renderScanner(){
+ let tbody=document.getElementById('scanBody');tbody.innerHTML='';
+ let sorted=Object.entries(scannerData).sort((a,b)=>b[1].strength-a[1].strength);
+ sorted.forEach(([sym,obj])=>{
+   let strengthClass=obj.strength<56?'s-weak':obj.strength<66?'s-medium':obj.strength<81?'s-strong':'s-super';
+   let badgeClass=obj.type.includes('WAIT')?'wait':obj.type.includes('UNDER')||obj.type.includes('EVEN')?'buy':'sell';
+   if(obj.strength<55) badgeClass='wait';
+   let tr=document.createElement('tr');
+   tr.innerHTML=`<td>${obj.name}</td><td><b>${obj.last}</b></td><td><span class="badge ${badgeClass}">${obj.signal}</span><br><span style="font-size:10px;color:#94a3b8">${obj.type}</span></td><td><div class="strength"><div class="strength-fill ${strengthClass}" style="width:${obj.strength}%"></div></div><span style="font-size:10px">${obj.strength}%</span></td>`;
+   tr.style.cursor='pointer';tr.onclick=()=>{document.getElementById('market').value=sym;currentSymbol=sym;resetData();connect();};
+   tbody.appendChild(tr);
+ });
+}
+function resetData(){digits=[];renderDots();updateStats();document.getElementById('bigDigit').textContent='-';}
+document.getElementById('market').addEventListener('change',e=>{currentSymbol=e.target.value;resetData();connect();});
+init();connect();
+</script>
+</body>
+</html>
